@@ -48,6 +48,15 @@ def populate_by_num(count, URL):
     return list_of_deals
 
 
+def price_regex_check(pattern, str_check):
+    prices_str = []
+    prices = []
+    for m in re.findall(pattern, str_check):
+        prices_str.append(m[0])
+        prices.append(float(m[0].replace(',', '')))
+    return prices_str, prices
+
+
 def parse_post(post):
     title_info = post.select_one('p[class="title"]')
     desc = title_info.text
@@ -57,17 +66,16 @@ def parse_post(post):
         date = match.group()
     else:
         date = curr_date
-    prices_str = []
-    prices = []
+    prices_str, prices = price_regex_check(r'\$([1-9][0-9]{0,2}(\,[0-9]{3})*(\.[0-9]{2})?)', desc)
     init_price = 'Unavailable'
     deal_price = 'Unavailable'
-    for m in re.findall(r'\$([1-9][0-9]{0,2}(\,[0-9]{3})*(\.[0-9]{2})?)', desc):
-        prices_str.append(m[0])
-        prices.append(float(m[0].replace(',', '')))
     if len(prices) == 0:
-        for m in re.findall(r'([1-9][0-9]{0,2}(\,[0-9]{3})*(\.[0-9]{2})?)', desc):
-            prices_str.append(m[0])
-            prices.append(float(m[0].replace(',', '')))
+        prices_str, prices = price_regex_check(r'([1-9][0-9]{0,2}(\,[0-9]{3})*(\.[0-9]{2}))', desc)
+        if len(prices) == 0:
+            formula = None
+            for m in re.findall(r'\(([1-9][0-9]{0,2}(\,[0-9]{3})*[^a-zA-Z])*\)', desc):
+                formula = m[0][1:-1]
+            
     if len(prices) == 1:
         deal_price = prices_str[0]
     elif len(prices) == 2:
