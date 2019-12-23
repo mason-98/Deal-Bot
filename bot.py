@@ -1,10 +1,10 @@
 import redditScrapper
-from discord.ext import commands, tasks
+from discord.ext import commands
 import asyncio
 
 
-def get_deals(amount):
-    list_of_deals = redditScrapper.populate_by_num(int(amount), 'https://old.reddit.com/r/bapcsalescanada/new/')
+def get_deals(amount, url):
+    list_of_deals = redditScrapper.populate_by_num(int(amount), url)
     return list_of_deals
 
 
@@ -45,7 +45,7 @@ class DealBot(commands.Cog):
 
     def __init__(self, _bot):
         self.bot = _bot
-        self.channel = 657266172785328140
+        self.channel = {'General': 657266172785328140}
         self.last_deal = None
         self.index = 0
         self.members = self.bot.get_all_members()
@@ -53,7 +53,10 @@ class DealBot(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         print('Bot is ready')
-        self.bot.loop.create_task(new_post(self.bot.get_channel(self.channel), self))
+        self.bot.loop.create_task(new_post(self.bot.get_channel(self.channel['General']), self,
+                                           'https://old.reddit.com/r/bapcsalescanada/new/'))
+        self.bot.loop.create_task(new_post(self.bot.get_channel(self.channel['General']), self,
+                                           'https://old.reddit.com/r/VideoGameDealsCanada/new/'))
 
     @commands.command()
     async def ping(self, ctx):
@@ -72,16 +75,17 @@ class DealBot(commands.Cog):
         Parameters
         ----------
         ctx : the context of the command
+        message: the message sent by the user
         """
         await ctx.send("From: " + ctx.author._user.display_name + ctx.author._user.discriminator + " Msg: " + message)
 
     @commands.command()
     async def clear(self, ctx, amount):
-        await ctx.channel.purge(limit=amount)
+        await ctx.channel.purge(limit=int(amount)+1)
 
     @commands.command()
     async def get(self, ctx, amount):
-        list_of_deals = get_deals(amount)
+        list_of_deals = get_deals(amount, 'https://old.reddit.com/r/bapcsalescanada/new/')
         for i in range(len(list_of_deals) - 1, -1, -1):
             await ctx.send(embed=list_of_deals[i])
         self.last_deal = list_of_deals[0]
@@ -93,10 +97,17 @@ class DealBot(commands.Cog):
     async def set_last_deal(self, last_deal):
         self.last_deal = last_deal
 
+    @commands.command()
+    async def add_channel(self, ctx, channel_id, channel_name):
+        try:
+            self.channel[channel_name] = int(channel_id)
+        except():
+            await ctx.send("Invalid Channel Id Given")
 
-async def new_post(channel, dealbot):
+
+async def new_post(channel, dealbot, url):
     while True:
-        deals = get_deals(5)
+        deals = get_deals(5, url)
         new_deals, check = check_post(deals, dealbot.last_deal)
         if new_deals:
             if check:

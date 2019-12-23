@@ -8,9 +8,9 @@ curr_date = datetime.date.today().strftime('%Y-%m-%d')
 
 
 class Deal:
-    def __init__(self, post_URL='Unavailable', deal_link='Unavailable', status='Available', desc='Unavailable',
+    def __init__(self, post_url='Unavailable', deal_link='Unavailable', status='Available', desc='Unavailable',
                  deal_price='Unavailable', date=curr_date):
-        self.attr = {'Post URL': post_URL, 'Deal Link': deal_link, 'Deal Price': deal_price, 'Status': status,
+        self.attr = {'Post URL': post_url, 'Deal Link': deal_link, 'Deal Price': deal_price, 'Status': status,
                      'Description': desc, 'Date Posted': date}
 
     def to_string(self):
@@ -21,10 +21,10 @@ class Deal:
 
 
 class BAPCDeals(Deal):
-    def __init__(self, post_URL='Unavailable', deal_link='Unavailable', status='Available', desc='Unavailable',
+    def __init__(self, post_url='Unavailable', deal_link='Unavailable', status='Available', desc='Unavailable',
                  deal_price='Unavailable', init_price='Unavailable', base_URL='https://old.reddit.com',
                  date=curr_date):
-        self.attr = {'Post URL': base_URL + post_URL, 'Deal Link': deal_link, 'Deal Price': deal_price,
+        self.attr = {'Post URL': base_URL + post_url, 'Deal Link': deal_link, 'Deal Price': deal_price,
                      'Original Price': init_price, 'Status': status, 'Description': desc, 'Date Posted': date}
 
 
@@ -57,25 +57,22 @@ def price_regex_check(pattern, str_check):
     return prices_str, prices
 
 
-def parse_post(post):
-    title_info = post.select_one('p[class="title"]')
-    desc = title_info.text
-    date_str = post.select_one('time').attrs['datetime']
-    match = re.search(r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))', date_str)
-    if match is not None:
-        date = match.group()
-    else:
-        date = curr_date
+def get_prices(desc):
     prices_str, prices = price_regex_check(r'\$([1-9][0-9]{0,2}(\,[0-9]{3})*(\.[0-9]{2})?)', desc)
     init_price = 'Unavailable'
     deal_price = 'Unavailable'
     if len(prices) == 0:
         prices_str, prices = price_regex_check(r'([1-9][0-9]{0,2}(\,[0-9]{3})*(\.[0-9]{2}))', desc)
         if len(prices) == 0:
-            formula = None
-            for m in re.findall(r'\(([1-9][0-9]{0,2}(\,[0-9]{3})*[^a-zA-Z])*\)', desc):
-                formula = m[0][1:-1]
-            
+            match = re.search(r'\(([1-9][0-9]{0,2}(\,[0-9]{3})*\-?\=?)*\)', desc)
+            if match:
+                formula = match.group()[1:-1]
+                equation = formula.split('=')
+                if '-' in equation[0]:
+                    lhs = equation[0].split('-')
+                    prices = [float(lhs[0].replace(',', '')), float(lhs[1].replace(',', '')),
+                              float(equation[1].replace(',', ''))]
+                    prices_str = [lhs[0], lhs[1], equation[1]]
     if len(prices) == 1:
         deal_price = prices_str[0]
     elif len(prices) == 2:
@@ -84,11 +81,23 @@ def parse_post(post):
     elif len(prices) > 2:
         deal_price = prices_str[len(prices) - 1]
         init_price = prices_str[prices.index(max(prices))]
+    return deal_price, init_price
+
+
+def parse_post(post):
+    title_info = post.select_one('p[class="title"]')
+    desc = title_info.text
+    date_str = post.select_one('time').attrs['datetime']
+    match = re.search(r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))', date_str)
+    if match:
+        date = match.group()
+    else:
+        date = curr_date
     post_URL = post.attrs['data-permalink']
     deal_link = post.attrs['data-url']
     if deal_link == post_URL:
         deal_link = 'Unavailable'
-
+    deal_price, init_price = get_prices(desc)
     deal = BAPCDeals(post_URL=post_URL, deal_link=deal_link, status='Available',
                      desc=title_info.text, deal_price=deal_price, init_price=init_price, date=date)
     return deal
