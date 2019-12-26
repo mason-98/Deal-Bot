@@ -9,26 +9,28 @@ curr_date = datetime.date.today().strftime('%Y-%m-%d')
 
 class Deal:
     def __init__(self, post_url='Unavailable', deal_link='Unavailable', status='Available', desc='Unavailable',
-                 deal_price='Unavailable', date=curr_date):
+                 deal_price='Unavailable', date=curr_date, deal_name='Deal'):
         self.attr = {'Post URL': post_url, 'Deal Link': deal_link, 'Deal Price': deal_price, 'Status': status,
                      'Description': desc, 'Date Posted': date}
+        self.deal_name = deal_name
 
     def to_string(self):
-        embed = discord.Embed(title='BAPCSaleCanada Deal', colour=0xe67e22)
+        embed = discord.Embed(title=self.deal_name, colour=0xe67e22)
         for key in self.attr:
             embed.add_field(name=key, value=self.attr[key], inline=False)
         return embed
 
 
-class BAPCDeals(Deal):
+class RedditDeals(Deal):
     def __init__(self, post_url='Unavailable', deal_link='Unavailable', status='Available', desc='Unavailable',
                  deal_price='Unavailable', init_price='Unavailable', base_URL='https://old.reddit.com',
-                 date=curr_date):
+                 date=curr_date, deal_name='Reddit Deal'):
         self.attr = {'Post URL': base_URL + post_url, 'Deal Link': deal_link, 'Deal Price': deal_price,
                      'Original Price': init_price, 'Status': status, 'Description': desc, 'Date Posted': date}
+        self.deal_name = deal_name
 
 
-def populate_by_num(count, URL):
+def populate_by_num(count, URL, deal_name):
     headers = {'User-Agent': "Mozilla/5.0"}
     page = requests.get(URL, headers=headers)
     soup = BeautifulSoup(page.content, 'html.parser')
@@ -37,7 +39,7 @@ def populate_by_num(count, URL):
     index = 0
     list_of_deals = []
     while count > 0 and index < len(posts):
-        deal = parse_post(posts[index])
+        deal = parse_post(posts[index], deal_name)
         list_of_deals.append(deal.to_string())
         index += 1
         count -= 1
@@ -84,7 +86,7 @@ def get_prices(desc):
     return deal_price, init_price
 
 
-def parse_post(post):
+def parse_post(post, deal_name):
     title_info = post.select_one('p[class="title"]')
     desc = title_info.text
     date_str = post.select_one('time').attrs['datetime']
@@ -98,8 +100,8 @@ def parse_post(post):
     if deal_link == post_URL:
         deal_link = 'Unavailable'
     deal_price, init_price = get_prices(desc)
-    deal = BAPCDeals(post_URL=post_URL, deal_link=deal_link, status='Available',
-                     desc=title_info.text, deal_price=deal_price, init_price=init_price, date=date)
+    deal = RedditDeals(post_url=post_URL, deal_link=deal_link, status='Available', desc=title_info.text,
+                       deal_price=deal_price, init_price=init_price, date=date, deal_name=deal_name)
     return deal
 
 
