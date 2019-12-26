@@ -101,24 +101,25 @@ class DealBot(commands.Cog):
         await ctx.send(message + " Add to wishlist")
 
     @commands.command()
-    async def remove(self, ctx, *, message):
+    async def remove(self, ctx, *, number):
         """
-        Add term to watchlist
+        Remove term from watchlist
         Parameters
         ----------
         ctx : the context of the command
-        message: the message sent by the user
+        number: the item number in the watchlist
         """
-        user = User.User(ctx.author.name, int(ctx.author.discriminator))
-        for index in range(0, len(self.members), 1):
-            if user.check_user(self.members[index]):
-                self.members[index].add_item(message, ctx.channel.name)
-                user = self.members[index]
-            elif index == len(self.members)-1:
-                user.add_item(message, ctx.channel.name)
-                self.members.append(user)
-        database.db_insert_user(user)
-        await ctx.send(message + " Add to wishlist")
+        if self.members:
+            key = (ctx.author.name, ctx.author.discriminator)
+            if key in self.members:
+                item = self.members[key].remove_item(int(number)-1, ctx.channel.name)
+                user = self.members[key]
+                database.db_insert_user(user)
+                await ctx.send(item + " removed from wishlist")
+            else:
+                await ctx.send("Item not found wishlist")
+        else:
+            await ctx.send("Item not found wishlist")
 
     @commands.command()
     async def wishlist(self, ctx):
@@ -185,7 +186,7 @@ async def new_post(channel, dealbot, url, channel_name):
                             mentions += dc_user.mention + ' '
                     new_deals[i].add_field(name='Users who should check out the deal', value=mentions)
                 await channel.send(embed=new_deals[i])
-        await asyncio.sleep(600)
+        await asyncio.sleep(120)
 
 
 def check_wishlists(deal, deal_bot, channel_name):
