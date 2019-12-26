@@ -178,13 +178,12 @@ async def new_post(channel, dealbot, url, channel_name):
                 users = []
                 found_users = check_wishlists(new_deals[i], dealbot, channel_name)
                 if len(found_users) != 0:
-                    message = "Check the deal below "
+                    mentions = ''
                     for user in found_users:
-                        message = message + "{} "
                         dc_user = discord.utils.get(dealbot.bot.users, name=user[0], discriminator=user[1])
-                        users.append(dc_user.mention)
-                    message = message.format(*users)
-                    await channel.send(message)
+                        if dc_user:
+                            mentions += dc_user.mention + ' '
+                    new_deals[i].add_field(name='Users who should check out the deal', value=mentions)
                 await channel.send(embed=new_deals[i])
         await asyncio.sleep(600)
 
